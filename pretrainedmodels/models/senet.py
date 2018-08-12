@@ -320,7 +320,8 @@ class SENet(nn.Module):
             downsample_kernel_size=downsample_kernel_size,
             downsample_padding=downsample_padding
         )
-        self.avg_pool = nn.AvgPool2d(7, stride=1)
+        #self.avg_pool = nn.AvgPool2d(7, stride=1)
+        self.avg_pool = nn.AdaptiveAvgPool2d(1)
         self.dropout = nn.Dropout(dropout_p) if dropout_p is not None else None
         self.last_linear = nn.Linear(512 * block.expansion, num_classes)
 
@@ -367,10 +368,15 @@ class SENet(nn.Module):
 
 
 def initialize_pretrained_model(model, num_classes, settings):
-    assert num_classes == settings['num_classes'], \
-        'num_classes should be {}, but is {}'.format(
-            settings['num_classes'], num_classes)
-    model.load_state_dict(model_zoo.load_url(settings['url']))
+    if num_classes == settings['num_classes']:
+        model.load_state_dict(model_zoo.load_url(settings['url']))
+    else:
+        model_dict = model.state_dict()
+        pretrained_dict = model_zoo.load_url(settings['url'])
+        pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict and "last_linear" not in k}
+        model_dict.update(pretrained_dict) 
+        model.load_state_dict(model_dict)
+        
     model.input_space = settings['input_space']
     model.input_size = settings['input_size']
     model.input_range = settings['input_range']
